@@ -11,6 +11,13 @@ const run = async () => {
     throw new Error('Please provide a hostname in the .env file')
   }
 
+  // Default values for acrostic feed
+  const defaults = {
+    recordName: 'acrostic-feed',
+    displayName: 'Acrostic Posts',
+    description: 'A feed showing posts that are acrostic poems - where the first letters of each line form a word.',
+  }
+
   const answers = await inquirer
     .prompt([
       {
@@ -35,18 +42,21 @@ const run = async () => {
         type: 'input',
         name: 'recordName',
         message: 'Enter a short name or the record. This will be shown in the feed\'s URL:',
+        default: defaults.recordName,
         required: true,
       },
       {
         type: 'input',
         name: 'displayName',
         message: 'Enter a display name for your feed:',
+        default: defaults.displayName,
         required: true,
       },
       {
         type: 'input',
         name: 'description',
         message: 'Optionally, enter a brief description of your feed:',
+        default: defaults.description,
         required: false,
       },
       {

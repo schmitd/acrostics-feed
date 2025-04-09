@@ -3,7 +3,8 @@ import {
   isCommit,
 } from './lexicon/types/com/atproto/sync/subscribeRepos'
 import { FirehoseSubscriptionBase, getOpsByType } from './util/subscription'
-import { spawn } from 'node:child_process'
+import { spawn } from 'child_process'
+import * as path from 'path'
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
@@ -12,20 +13,27 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
     const ops = await getOpsByType(evt)
 
     const postsToDelete = ops.posts.deletes.map((del) => del.uri)
-    const postsToCreate = ops.posts.creates
-      .filter((create) => {
-        // first letter of each line is an english word
-        let rec = create.record.text.toLowerCase()
-		return isAcrostic(rec) 
-      })
-      .map((create) => {
-        // map alf-related posts to a db row
-        return {
-          uri: create.uri,
-          cid: create.cid,
-          indexedAt: new Date().toISOString(),
+    const postsToCreate: Array<{ uri: string, cid: string, indexedAt: string }> = [];
+
+    // Process the posts that should be created
+    for (const create of ops.posts.creates) {
+      try {
+        const text = create.record.text
+        if (text && text.trim().length > 0) {
+          const isAcrosticPost = await isAcrostic(text)
+          if (isAcrosticPost) {
+            postsToCreate.push({
+              uri: create.uri,
+              cid: create.cid,
+              indexedAt: new Date().toISOString(),
+            })
+          }
         }
-      })
+      } catch (err) {
+        // tslint:disable-next-line:no-console
+        console.error('Error processing post:', err)
+      }
+    }
 
     if (postsToDelete.length > 0) {
       await this.db
@@ -41,15 +49,46 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
         .execute()
     }
   }
-
 }
 
-function isAcrostic(rec) {
-	lineStarts = rec.split('/n')
-					.map((data) => data.trim().charAt(0))
-					.join("")
-	const isEnglish = spawn('python3', ['is_english.py', lineStarts])
-	isEnglish.stdout.on('data', async (chunk) => {
-		return chunk.toLowerCase === 'true')
-	}
+function isAcrostic(text: string): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    // Split by newlines and get first character of each line
+    const lines = text.split('\n')
+      .filter(line => line.trim().length > 0) // Remove empty lines
+      .map(line => line.trim().charAt(0))
+
+    // Needs at least 3 lines to be considered an acrostic
+    if (lines.length < 4) {
+      return resolve(false)
+    }
+
+    const word = lines.join('')
+
+    // Run the Python script to check if the word is English
+    const scriptPath = path.resolve(process.cwd(), 'src/is_english.py')
+    const pythonExecutable = path.resolve(process.cwd(), '.venv/bin/python3')
+    const isEnglish = spawn(pythonExecutable, [scriptPath, word])
+
+    let result = ''
+    isEnglish.stdout.on('data', (chunk) => {
+      result += chunk.toString()
+    })
+
+    isEnglish.on('close', (code) => {
+      if (code !== 0) {
+        // tslint:disable-next-line:no-console
+        console.error(`Python script exited with code ${code}`)
+        return resolve(false)
+      }
+
+      resolve(result.trim() === 'true')
+    })
+
+    isEnglish.on('error', (err) => {
+      // tslint:disable-next-line:no-console
+      console.error('Failed to start Python process:', err)
+      reject(err)
+    })
+  })
 }

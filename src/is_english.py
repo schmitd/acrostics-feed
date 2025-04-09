@@ -4,11 +4,11 @@ Checks if string passed as argument is in the NLTK words corpus, printing
 true or false on stdout.
 """
 from nltk.corpus import words
-import sys.argv as args
+import sys
 
 def main(arg):
-    isEnglish = arg in words.words()
-    print(str(arg))
+    isEnglish = arg.lower() in words.words()
+    print(str(isEnglish).lower())
 
 if __name__ == '__main__':
-    main(args[1])
+    main(sys.argv[1])

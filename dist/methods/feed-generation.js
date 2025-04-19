@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -17,7 +8,7 @@ const xrpc_server_1 = require("@atproto/xrpc-server");
 const algos_1 = __importDefault(require("../algos"));
 const syntax_1 = require("@atproto/syntax");
 function default_1(server, ctx) {
-    server.app.bsky.feed.getFeedSkeleton((_a) => __awaiter(this, [_a], void 0, function* ({ params, req }) {
+    server.app.bsky.feed.getFeedSkeleton(async ({ params, req }) => {
         const feedUri = new syntax_1.AtUri(params.feed);
         const algo = algos_1.default[feedUri.rkey];
         if (feedUri.hostname !== ctx.cfg.publisherDid ||
@@ -34,10 +25,10 @@ function default_1(server, ctx) {
          *   ctx.didResolver,
          * )
          */
-        const body = yield algo(ctx, params);
+        const body = await algo(ctx, params);
         return {
             encoding: 'application/json',
             body: body,
         };
-    }));
+    });
 }

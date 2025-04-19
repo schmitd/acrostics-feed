@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __asyncValues = (this && this.__asyncValues) || function (o) {
     if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
     var m = o[Symbol.asyncIterator], i;
@@ -40,61 +31,55 @@ class FirehoseSubscriptionBase {
             },
         });
     }
-    run(subscriptionReconnectDelay) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a, e_1, _b, _c;
+    async run(subscriptionReconnectDelay) {
+        var _a, e_1, _b, _c;
+        try {
             try {
+                for (var _d = true, _e = __asyncValues(this.sub), _f; _f = await _e.next(), _a = _f.done, !_a; _d = true) {
+                    _c = _f.value;
+                    _d = false;
+                    const evt = _c;
+                    this.handleEvent(evt).catch((err) => {
+                        console.error('repo subscription could not handle message', err);
+                    });
+                    // update stored cursor every 20 events or so
+                    if ((0, subscribeRepos_1.isCommit)(evt) && evt.seq % 20 === 0) {
+                        await this.updateCursor(evt.seq);
+                    }
+                }
+            }
+            catch (e_1_1) { e_1 = { error: e_1_1 }; }
+            finally {
                 try {
-                    for (var _d = true, _e = __asyncValues(this.sub), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
-                        _c = _f.value;
-                        _d = false;
-                        const evt = _c;
-                        this.handleEvent(evt).catch((err) => {
-                            console.error('repo subscription could not handle message', err);
-                        });
-                        // update stored cursor every 20 events or so
-                        if ((0, subscribeRepos_1.isCommit)(evt) && evt.seq % 20 === 0) {
-                            yield this.updateCursor(evt.seq);
-                        }
-                    }
+                    if (!_d && !_a && (_b = _e.return)) await _b.call(_e);
                 }
-                catch (e_1_1) { e_1 = { error: e_1_1 }; }
-                finally {
-                    try {
-                        if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
-                    }
-                    finally { if (e_1) throw e_1.error; }
-                }
+                finally { if (e_1) throw e_1.error; }
             }
-            catch (err) {
-                console.error('repo subscription errored', err);
-                setTimeout(() => this.run(subscriptionReconnectDelay), subscriptionReconnectDelay);
-            }
-        });
+        }
+        catch (err) {
+            console.error('repo subscription errored', err);
+            setTimeout(() => this.run(subscriptionReconnectDelay), subscriptionReconnectDelay);
+        }
     }
-    updateCursor(cursor) {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield this.db
-                .updateTable('sub_state')
-                .set({ cursor })
-                .where('service', '=', this.service)
-                .execute();
-        });
+    async updateCursor(cursor) {
+        await this.db
+            .updateTable('sub_state')
+            .set({ cursor })
+            .where('service', '=', this.service)
+            .execute();
     }
-    getCursor() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const res = yield this.db
-                .selectFrom('sub_state')
-                .selectAll()
-                .where('service', '=', this.service)
-                .executeTakeFirst();
-            return res ? { cursor: res.cursor } : {};
-        });
+    async getCursor() {
+        const res = await this.db
+            .selectFrom('sub_state')
+            .selectAll()
+            .where('service', '=', this.service)
+            .executeTakeFirst();
+        return res ? { cursor: res.cursor } : {};
     }
 }
 exports.FirehoseSubscriptionBase = FirehoseSubscriptionBase;
-const getOpsByType = (evt) => __awaiter(void 0, void 0, void 0, function* () {
-    const car = yield (0, repo_1.readCar)(evt.blocks);
+const getOpsByType = async (evt) => {
+    const car = await (0, repo_1.readCar)(evt.blocks);
     const opsByType = {
         posts: { creates: [], deletes: [] },
         reposts: { creates: [], deletes: [] },
@@ -143,7 +128,7 @@ const getOpsByType = (evt) => __awaiter(void 0, void 0, void 0, function* () {
         }
     }
     return opsByType;
-});
+};
 exports.getOpsByType = getOpsByType;
 const isPost = (obj) => {
     return isType(obj, lexicons_1.ids.AppBskyFeedPost);

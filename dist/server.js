@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -57,14 +48,12 @@ class FeedGenerator {
         app.use((0, well_known_1.default)(ctx));
         return new FeedGenerator(app, db, firehose, cfg);
     }
-    start() {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield (0, db_1.migrateToLatest)(this.db);
-            this.firehose.run(this.cfg.subscriptionReconnectDelay);
-            this.server = this.app.listen(this.cfg.port, this.cfg.listenhost);
-            yield events_1.default.once(this.server, 'listening');
-            return this.server;
-        });
+    async start() {
+        await (0, db_1.migrateToLatest)(this.db);
+        this.firehose.run(this.cfg.subscriptionReconnectDelay);
+        this.server = this.app.listen(this.cfg.port, this.cfg.listenhost);
+        await events_1.default.once(this.server, 'listening');
+        return this.server;
     }
 }
 exports.FeedGenerator = FeedGenerator;

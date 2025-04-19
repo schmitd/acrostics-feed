@@ -3,8 +3,14 @@ import {
   isCommit,
 } from './lexicon/types/com/atproto/sync/subscribeRepos'
 import { FirehoseSubscriptionBase, getOpsByType } from './util/subscription'
-import { spawn } from 'child_process'
-import * as path from 'path'
+import en from 'dictionary-en'
+import nspell from 'nspell'
+const spell = nspell(en)
+
+// Create a promise-based wrapper for dictionary-en
+function lookupWord(word: string): boolean {
+	return spell.correct(word)
+}
 
 export class FirehoseSubscription extends FirehoseSubscriptionBase {
   async handleEvent(evt: RepoEvent) {
@@ -51,44 +57,17 @@ export class FirehoseSubscription extends FirehoseSubscriptionBase {
   }
 }
 
-function isAcrostic(text: string): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    // Split by newlines and get first character of each line
-    const lines = text.split('\n')
-      .filter(line => line.trim().length > 0) // Remove empty lines
-      .map(line => line.trim().charAt(0))
+function isAcrostic(text: string): boolean {
+  // Split by newlines and get first character of each line
+  const lines = text.split('\n')
+    .filter(line => line.trim().length > 0) // Remove empty lines
+    .map(line => line.trim().charAt(0))
 
-    // Needs at least 3 lines to be considered an acrostic
-    if (lines.length < 4) {
-      return resolve(false)
-    }
+  // Needs at least 4 lines to be considered an acrostic
+  if (lines.length < 4) {
+    return false
+  }
 
-    const word = lines.join('')
-
-    // Run the Python script to check if the word is English
-    const scriptPath = path.resolve(process.cwd(), 'src/is_english.py')
-    const pythonExecutable = path.resolve(process.cwd(), '.venv/bin/python3')
-    const isEnglish = spawn(pythonExecutable, [scriptPath, word])
-
-    let result = ''
-    isEnglish.stdout.on('data', (chunk) => {
-      result += chunk.toString()
-    })
-
-    isEnglish.on('close', (code) => {
-      if (code !== 0) {
-        // tslint:disable-next-line:no-console
-        console.error(`Python script exited with code ${code}`)
-        return resolve(false)
-      }
-
-      resolve(result.trim() === 'true')
-    })
-
-    isEnglish.on('error', (err) => {
-      // tslint:disable-next-line:no-console
-      console.error('Failed to start Python process:', err)
-      reject(err)
-    })
-  })
+  const word = lines.join('')
+  return lookupWord(word)
 }
